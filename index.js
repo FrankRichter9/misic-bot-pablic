@@ -55,13 +55,14 @@ app.listen(process.env.PORT);
 
 async function PlaySongVk(msg){
     const {videos} = await yts(msg);
-    if (!videos.length) return message.channel.send("No songs were found!");
+    if (!videos.length) return Message.channel.send("No songs were found!");
     const song = {
         title: videos[0].title,
         url: videos[0].url
     };
 
-    
+    serverQueue = queue.get(Message.guild.id);
+
     if(!serverQueue){
         let queueConst = {
             textChannel: Message.channel,
