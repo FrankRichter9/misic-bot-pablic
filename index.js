@@ -4,7 +4,6 @@
 var express = require("express")
 var app = express()
 
-// var LINKS = ['11', '22'];
 
 var oldValue = ''
 
@@ -61,7 +60,6 @@ async function PlaySongVk(msg){
         title: videos[0].title,
         url: videos[0].url
     };
-    // serverQueue = queue.get(Message.guild.id);
 
     
     if(!serverQueue){
@@ -88,11 +86,8 @@ async function PlaySongVk(msg){
         }
     }else{
         serverQueue.songs.push(song);
-        // console.log('add ' + msg)
-        Message.channel.send(`${msg} добавлен в очередь!`)
-    }
-
-    
+        Message.channel.send(`**${msg}** добавлен в очередь!`)
+    }  
 }
 
 
@@ -101,7 +96,6 @@ async function PlaySongVk(msg){
 const Discord = require('discord.js');
 const client = new Discord.Client();
 const {prefix, token} = require("./config.json")
-var serverQueue = '';
 let vc = '';
 const yts = require("yt-search");
 
@@ -110,129 +104,120 @@ FFMPEG_OPTIONS = {
     'options': '-vn',
 }
 
+client.login(token)
 
-var queue = new Map();
+const queue = new Map();
 
 const ytdl = require('ytdl-core');
 
-client.on('ready', () => console.log("ready"));
+// client.on('ready', () => console.log("ready"));
 
-client.on('message', Play)
+
+
+client.once('ready', () => {
+    console.log('Ready!');
+});
+client.once('reconnecting', () => {
+    console.log('Reconnecting!');
+});
+client.once('disconnect', () => {
+    console.log('Disconnect!');
+});
 
 var Message;
 
-async function Play(message){
-    // Message = message;
-    console.log(message.content)
+
+
+client.on('message', async message => {
+  
+    
     if(message.author.bot) return;
     if(message.content.indexOf(prefix) !== 0) return;
 
     const args = message.content.slice(prefix.length).trim().split(/ +/g);
     const command = args.shift().toLowerCase();
-    // if(command == "a")return message.channel.send(`>play sfdsfsd`)
-    if(command == "play") {
-        Message = message;
-        if(!args[0]) return;
-        let url = args.join(" ");
 
-        // if(!url.match(/(youtube.com|youtu.be)\/(watch)?(\?v=)?(\S+)?/)) return message.channel.send("Ссылка не работает!");
+    const serverQueue = queue.get(message.guild.id);
 
-        serverQueue = queue.get(message.guild.id);
-        vc = message.member.voice;
+    Message = message;
 
-        if(!vc) return message.channel.send("Вы не в голосовом канале!");
-
-        if(!vc.channel.permissionsFor(client.user).has('CONNECT') || !vc.channel.permissionsFor(client.user).has('SPEAK')) return message.channel.send("У меня недостаточно прав на подключению к каналу.");
-
-        const {videos} = await yts(url);
-        if (!videos.length) return message.channel.send("No songs were found!");
-        const song = {
-            title: videos[0].title,
-            url: videos[0].url
-        };
-
-        // let songinfo = await ytdl.getInfo(url);
-        // let song = {
-        //     title: songinfo.title,
-        //     url: songinfo.video_url
-        // }
-
-        if(!serverQueue){
-            let queueConst = {
-                textChannel: message.channel,
-                voiceChannel: vc.channel,
-                connection: null,
-                songs: [],
-                volume: 5,
-                playing: true
-            };
-
-            queue.set(message.guild.id, queueConst);
-            queueConst.songs.push(song);
-
-            try {
-                let connection = await vc.channel.join();
-                queueConst.connection = connection
-                play(message.guild, queueConst.songs[0])
-            } catch (error) {
-                console.log(error);
-                queue.delete(message.guild.id);
-                return message.channel.send("Ошибка: " + error);
-            }
-        }else{
-            serverQueue.songs.push(song);
-            console.log(serverQueue.songs)
-            return message.channel.send(`**${song.title}** добавлен в очередь!`)
-        }
-        
+    switch (command) {
+        case "play":
+            getCommandPlay(message, serverQueue)
+            break;
+    
+        default:
+            message.channel.send("You need to enter a valid command!");
+            break;
     }
-    if(command == "skip") {
-        // let serverQueue = queue.get(message.guild.id);
+    if(command === "skip") {
         skip(message, serverQueue)
     }
-    if(command == "stop") {
-        let serverQueue = queue.get(message.guild.id);
+    if(command === "stop") {
         stop(message, serverQueue)
     }
  
-}
+})
 
-async function PlaySong(message){
-    const {videos} = await yts(message);
-        if (!videos.length) return message.channel.send("No songs were found!");
-        const song = {
-            title: videos[0].title,
-            url: videos[0].url
+async function getCommandPlay(message, serverQueue){
+
+    const args = message.content.slice(prefix.length).trim().split(/ +/g);
+    if(!args[0]) return;
+
+    let url = args.join(" ");
+
+    serverQueue = queue.get(message.guild.id);
+    vc = message.member.voice;
+
+    if(!vc) return message.channel.send("Вы не в голосовом канале!");
+
+    if(!vc.channel.permissionsFor(client.user).has('CONNECT') || !vc.channel.permissionsFor(client.user).has('SPEAK')) return message.channel.send("У меня недостаточно прав на подключению к каналу.");
+
+    const {videos} = await yts(url);
+    if (!videos.length) return message.channel.send("No songs were found!");
+    const song = {
+        title: videos[0].title,
+        url: videos[0].url
+    };
+
+    if(!serverQueue){
+        let queueConst = {
+            textChannel: message.channel,
+            voiceChannel: vc.channel,
+            connection: null,
+            songs: [],
+            volume: 5,
+            playing: true
         };
 
+        queue.set(message.guild.id, queueConst);
         queueConst.songs.push(song);
+
+        try {
+            let connection = await vc.channel.join();
+            queueConst.connection = connection
+            play(message.guild, queueConst.songs[0])
+        } catch (error) {
+            console.log(error);
+            queue.delete(message.guild.id);
+            return message.channel.send("Ошибка: " + error);
+        }
+    }else{
+        serverQueue.songs.push(song);
+        return message.channel.send(`**${song.title}** добавлен в очередь!`)
+    }
+   
 }
+
+
 
 /**
  * 
  * @param {Discord.Guild} guild 
  * @param {Object} song 
  */
-// async function playSong(guild, song) {
-//     let serverQueue = queue.get(guild.id);
 
-//     if(!song){
-//         serverQueue.voiceChannel.leave();
-//         queue.delete(guild.id);
-//         return;
-//     }
 
-//     const dispatcher = serverQueue.connection.play(ytdl(song.url)).on('end', () => {
-//         serverQueue.songs.shift();
-        
-//         playSong(guild, serverQueue.songs[0]);
-//     })
-//     .on('error', () => {
-//         console.log(error)
-//     })
-
-//     dispatcher.setVolumeLogarithmic(serverQueue.volume / 5);
-// }
 
 function play(guild, song, skip = false) {
     const serverQueue = queue.get(guild.id);
@@ -253,26 +238,29 @@ function play(guild, song, skip = false) {
 }
 
 
-async function skip(message, serverQueue) {
-    // if (!message.member.voiceChannel) return message.channel.send('You have to be in a voice channel to stop the music!');
-    if (!serverQueue) return message.channel.send('There is no song that I could skip!');
-    if(serverQueue){
-        await serverQueue.connection.dispatcher.end();
-        // await serverQueue.songs.shift();
-        play(message.guild, serverQueue.songs[0], true);
-    }
-   }
+function skip(message, serverQueue) {
+    if (!message.member.voice.channel)
+    return message.channel.send(
+      "You have to be in a voice channel to stop the music!"
+    );
+  if (!serverQueue)
+    return message.channel.send("There is no song that I could skip!");
+  serverQueue.connection.dispatcher.end();
+}
 
-   function stop(message, serverQueue) {
-    // if (!message.member.voiceChannel) return message.channel.send('You have to be in a voice channel to stop the music!');
-    // if (!serverQueue) return message.channel.send('There is no song that I could skip!');
-    if(serverQueue){
-        serverQueue.connection.dispatcher.end();
-        serverQueue.songs = [];
-    }
+function stop(message, serverQueue) {
+    if (!message.member.voice.channel)
+    return message.channel.send(
+      "You have to be in a voice channel to stop the music!"
+    );
+  
+  if (!serverQueue)
+    return message.channel.send("There is no song that I could stop!");
     
-   }
+  serverQueue.songs = [];
+  serverQueue.connection.dispatcher.end();
+}
 
-client.login(token)
+
 
 
