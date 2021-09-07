@@ -125,7 +125,7 @@ client.once('disconnect', () => {
 });
 
 var Message;
-
+var serverQueue;
 
 
 client.on('message', async message => {
@@ -137,7 +137,7 @@ client.on('message', async message => {
     const args = message.content.slice(prefix.length).trim().split(/ +/g);
     const command = args.shift().toLowerCase();
 
-    const serverQueue = queue.get(message.guild.id);
+    serverQueue = queue.get(message.guild.id);
 
     Message = message;
 
